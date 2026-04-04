@@ -1,4 +1,7 @@
 # Python
+# Python virtual env (IMPORTANT)
+.venv/
+backend/.venv/
 venv/
 __pycache__/
 *.pyc
