@@ -3,6 +3,25 @@ import { createSession } from '../../api/apiClient'
 import { useGrid } from '../../hooks/useGrid'
 import useStore from '../../store/useStore'
 
+function apiErrorMessage(err) {
+  const isNetwork =
+    err?.code === 'ERR_NETWORK' ||
+    err?.message === 'Network Error' ||
+    (!err?.response && err?.request)
+  if (isNetwork) {
+    return (
+      'Cannot reach the API. Start the backend on port 8000 (e.g. uvicorn from backend/) ' +
+      'and ensure MongoDB is running. If you use `npm run dev`, requests go through the Vite proxy to localhost:8000.'
+    )
+  }
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d.msg || JSON.stringify(d)).join('; ') || err.message
+  }
+  return err?.message || 'Request failed'
+}
+
 export default function ProjectSetup() {
   const [form, setForm] = useState({
     projectName:  '',
@@ -72,7 +91,7 @@ export default function ProjectSetup() {
       setActivePanel('editor')
     } catch (err) {
       console.error('Setup error:', err)
-      pushToast('Setup failed: ' + (err.response?.data?.detail || err.message), 'error')
+      pushToast('Setup failed: ' + apiErrorMessage(err), 'error')
     } finally {
       setLoading(false)
     }
