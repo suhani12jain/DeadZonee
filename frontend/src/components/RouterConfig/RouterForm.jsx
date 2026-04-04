@@ -8,35 +8,77 @@ const FREQ_OPTIONS = [
   { label: '6 GHz',   value: 6000 },
 ]
 
-/**
- * RouterForm — modal for placing or editing a router.
- * Opened by double-clicking an allow_router=true cell, or clicking an existing pin.
- */
+// Device types — drives interference model in signal_engine.py
+const DEVICE_TYPE_OPTIONS = [
+  {
+    value: 'wifi_ap',
+    label: 'WiFi Access Point',
+    desc:  'CSMA/CA — channel-aware, non-overlapping channels avoid interference',
+  },
+  {
+    value: 'access_point',
+    label: 'Access Point (AP)',
+    desc:  'Same as WiFi AP — enterprise grade, channel-coordinated',
+  },
+  {
+    value: 'ble_node',
+    label: 'BLE Node',
+    desc:  'Bluetooth Low Energy — always on 2.4 GHz, always interferes with WiFi',
+  },
+  {
+    value: 'iot_node',
+    label: 'IoT Node (Zigbee/Z-Wave)',
+    desc:  '2.4 GHz — no CSMA/CA, always interferes with 2.4 GHz WiFi and BLE',
+  },
+]
+
+// Channel options per frequency
+function getChannelOptions(freq) {
+  if (freq < 3000) return [1, 6, 11]
+  if (freq < 5900) return [36, 40, 44, 48, 149, 153, 157, 161]
+  return [1, 5, 9, 13]
+}
+
+// BLE and IoT nodes are always 2.4 GHz — lock frequency for those types
+function isFreqLocked(deviceType) {
+  return deviceType === 'ble_node' || deviceType === 'iot_node'
+}
+
 export default function RouterForm() {
   const { routerModal, closeRouterModal, routers, cells } = useStore()
   const { createRouter, removeRouterById, editRouter } = useRouters()
 
   const editMode = routerModal?.editMode
+
   const [form, setForm] = useState({
-    name: '', tx_power_dbm: 20, frequency_mhz: 2400, channel: 1, range_m: 50, cost: 2000,
+    name:          '',
+    tx_power_dbm:  20,
+    frequency_mhz: 2400,
+    channel:       1,
+    range_m:       50,
+    cost:          2000,
+    device_type:   'wifi_ap',
   })
 
-  const chOptions = form.frequency_mhz < 3000 ? [1, 6, 11] :
-    form.frequency_mhz < 5900 ? [36, 40, 44, 48, 149, 153, 157, 161] : [1, 5, 9, 13]
+  const chOptions = getChannelOptions(form.frequency_mhz)
 
   useEffect(() => {
     if (!routerModal) return
     if (editMode) {
       setForm({
-        name: routerModal.name ?? '',
-        tx_power_dbm: routerModal.tx_power_dbm ?? 20,
+        name:          routerModal.name          ?? '',
+        tx_power_dbm:  routerModal.tx_power_dbm  ?? 20,
         frequency_mhz: routerModal.frequency_mhz ?? 2400,
-        channel: routerModal.channel ?? 1,
-        range_m: routerModal.range_m ?? 50,
-        cost: routerModal.cost ?? 2000,
+        channel:       routerModal.channel       ?? 1,
+        range_m:       routerModal.range_m       ?? 50,
+        cost:          routerModal.cost          ?? 2000,
+        device_type:   routerModal.device_type   ?? 'wifi_ap',
       })
     } else {
-      setForm(f => ({ ...f, name: `R${Math.floor(routerModal.row)}-AP${String(routers.length + 1).padStart(2, '0')}` }))
+      setForm(f => ({
+        ...f,
+        name: `R${Math.floor(routerModal.row)}-AP${String(routers.length + 1).padStart(2, '0')}`,
+      }))
     }
   }, [routerModal])
 
@@ -44,7 +86,24 @@ export default function RouterForm() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  // When device type changes, lock frequency to 2400 for BLE/IoT
+  function handleDeviceTypeChange(dt) {
+    set('device_type', dt)
+    if (isFreqLocked(dt)) {
+      set('frequency_mhz', 2400)
+      set('channel', 1)
+    }
+  }
+
+  // When frequency changes, reset channel to first valid option
+  function handleFreqChange(f) {
+    const freq = parseFloat(f)
+    set('frequency_mhz', freq)
+    set('channel', getChannelOptions(freq)[0])
+  }
+
   const cell = !editMode && cells.find(c => c.row === routerModal.row && c.col === routerModal.col)
+  const selectedDeviceInfo = DEVICE_TYPE_OPTIONS.find(d => d.value === form.device_type)
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return
@@ -57,9 +116,7 @@ export default function RouterForm() {
   }
 
   const handleDelete = async () => {
-    if (editMode) {
-      await removeRouterById(routerModal.router_id, routerModal.name)
-    }
+    if (editMode) await removeRouterById(routerModal.router_id, routerModal.name)
     closeRouterModal()
   }
 
@@ -67,15 +124,15 @@ export default function RouterForm() {
     <div className="modal-backdrop" onClick={closeRouterModal}>
       <div className="modal-box fade-up" onClick={e => e.stopPropagation()}>
 
+        {/* Header */}
         <div className="modal-head">
           <div className="modal-head-left">
             <span className="modal-icon">⬡</span>
             <div>
-              <p className="modal-title">{editMode ? `Edit ${routerModal.name}` : 'Place Router'}</p>
+              <p className="modal-title">{editMode ? `Edit ${routerModal.name}` : 'Place Device'}</p>
               <p className="modal-sub">
-                {editMode
-                  ? `Row ${routerModal.row} · Col ${routerModal.col}`
-                  : `Row ${routerModal.row} · Col ${routerModal.col}${cell ? ` · ${cell.zone_type}` : ''}`}
+                Row {routerModal.row} · Col {routerModal.col}
+                {!editMode && cell ? ` · ${cell.zone_type}` : ''}
               </p>
             </div>
           </div>
@@ -84,57 +141,109 @@ export default function RouterForm() {
 
         <div className="modal-body">
           <div className="form-grid">
+
+            {/* Device Name */}
             <div className="field" style={{ gridColumn: '1/-1' }}>
-              <label>Router Name</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="R1-AP01" />
+              <label>Device Name</label>
+              <input
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
+                placeholder="R1-AP01"
+              />
             </div>
 
+            {/* Device Type — full width, most important field */}
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>Device Type</label>
+              <select
+                value={form.device_type}
+                onChange={e => handleDeviceTypeChange(e.target.value)}
+              >
+                {DEVICE_TYPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              {/* Inline description so user understands interference behaviour */}
+              {selectedDeviceInfo && (
+                <p className="field-hint">{selectedDeviceInfo.desc}</p>
+              )}
+            </div>
+
+            {/* TX Power */}
             <div className="field">
               <label>TX Power (dBm)</label>
-              <input type="number" min={1} max={30} value={form.tx_power_dbm}
-                onChange={e => set('tx_power_dbm', parseFloat(e.target.value))} />
+              <input
+                type="number" min={1} max={30}
+                value={form.tx_power_dbm}
+                onChange={e => set('tx_power_dbm', parseFloat(e.target.value))}
+              />
             </div>
 
+            {/* Range */}
             <div className="field">
               <label>Range (m)</label>
-              <input type="number" min={5} max={500} value={form.range_m}
-                onChange={e => set('range_m', parseFloat(e.target.value))} />
+              <input
+                type="number" min={5} max={500}
+                value={form.range_m}
+                onChange={e => set('range_m', parseFloat(e.target.value))}
+              />
             </div>
 
+            {/* Frequency — locked for BLE/IoT */}
             <div className="field">
-              <label>Frequency</label>
-              <select value={form.frequency_mhz} onChange={e => {
-                const f = parseFloat(e.target.value)
-                set('frequency_mhz', f)
-                set('channel', f < 3000 ? 1 : 36)
-              }}>
-                {FREQ_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              <label>
+                Frequency
+                {isFreqLocked(form.device_type) && (
+                  <span className="field-lock"> · locked to 2.4 GHz</span>
+                )}
+              </label>
+              <select
+                value={form.frequency_mhz}
+                onChange={e => handleFreqChange(e.target.value)}
+                disabled={isFreqLocked(form.device_type)}
+              >
+                {FREQ_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
 
+            {/* Channel */}
             <div className="field">
               <label>Channel</label>
-              <select value={form.channel} onChange={e => set('channel', parseInt(e.target.value))}>
+              <select
+                value={form.channel}
+                onChange={e => set('channel', parseInt(e.target.value))}
+              >
                 {chOptions.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
+            {/* Cost */}
             <div className="field" style={{ gridColumn: '1/-1' }}>
               <label>Cost (₹)</label>
-              <input type="number" min={0} value={form.cost}
-                onChange={e => set('cost', parseFloat(e.target.value))} />
+              <input
+                type="number" min={0}
+                value={form.cost}
+                onChange={e => set('cost', parseFloat(e.target.value))}
+              />
             </div>
+
           </div>
         </div>
 
+        {/* Footer */}
         <div className="modal-foot">
-          {editMode && <button className="btn btn-danger btn-sm" onClick={handleDelete}>Remove</button>}
+          {editMode && (
+            <button className="btn btn-danger btn-sm" onClick={handleDelete}>Remove</button>
+          )}
           <span style={{ flex: 1 }} />
           <button className="btn btn-sm" onClick={closeRouterModal}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSubmit}>
-            {editMode ? 'Save' : 'Place Router'}
+            {editMode ? 'Save' : 'Place Device'}
           </button>
         </div>
+
       </div>
 
       <style>{`
@@ -147,12 +256,14 @@ export default function RouterForm() {
           background: var(--bg-elevated);
           border: 1px solid var(--border-bright);
           border-radius: var(--radius-xl);
-          width: 400px; max-width: 94vw;
+          width: 420px; max-width: 94vw;
           box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 30px rgba(99,179,237,0.08);
+          max-height: 90vh; overflow-y: auto;
         }
         .modal-head {
           display: flex; align-items: center; justify-content: space-between;
           padding: 16px 18px; border-bottom: 1px solid var(--border);
+          position: sticky; top: 0; background: var(--bg-elevated); z-index: 1;
         }
         .modal-head-left { display: flex; align-items: center; gap: 10px; }
         .modal-icon { font-size: 20px; color: var(--accent); }
@@ -163,7 +274,17 @@ export default function RouterForm() {
         .modal-foot {
           display: flex; align-items: center; gap: 8px;
           padding: 12px 18px; border-top: 1px solid var(--border);
+          position: sticky; bottom: 0; background: var(--bg-elevated);
         }
+        .field-hint {
+          font-size: 9px; color: var(--text-muted);
+          margin-top: 4px; line-height: 1.4;
+          padding: 4px 6px;
+          background: rgba(255,255,255,0.03);
+          border-left: 2px solid var(--accent);
+          border-radius: 2px;
+        }
+        .field-lock { color: var(--accent); font-size: 9px; font-weight: 400; }
       `}</style>
     </div>
   )
