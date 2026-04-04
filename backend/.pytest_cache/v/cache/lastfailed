@@ -1,0 +1,12 @@
+{
+  "tests/test_deadzone_detector.py::TestBuildClusters": true,
+  "tests/test_deadzone_detector.py::TestDetectDeadzonesIntegration": true,
+  "tests/test_signal_engine.py::TestPathLossFormula": true,
+  "tests/test_signal_engine.py::TestSignalOneRouter": true,
+  "tests/test_signal_engine.py::TestQualityMatrix": true,
+  "tests/test_signal_engine.py::TestChannelInterference": true,
+  "tests/test_signal_engine.py::TestWeightedCoverageScore": true,
+  "tests/test_signal_engine.py::TestComputeSignalIntegration": true,
+  "tests/test_signal_engine.py::TestComputeSignalIntegration::test_mongodb_write_occurred": true,
+  "tests/test_signal_engine.py::TestComputeSignalIntegration::test_high_attenuation_reduces_coverage": true
+}
