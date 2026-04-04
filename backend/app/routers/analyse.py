@@ -21,6 +21,7 @@ from app.database.schemas import AnalysePayload
 # ── M1 imports (swap mock → real at Hour 16) ──────────────────────────────────
 from app.ml_models.signal_engine    import compute_signal
 from app.ml_models.deadzone_detector import detect_deadzones
+from app.ml_models.rf_explainer import build_rf_explanations
 
 router = APIRouter()
 
@@ -63,11 +64,16 @@ async def run_analysis(payload: AnalysePayload):
 async def get_results(session_id: str):
     db = get_async_db()
 
-    signal   = await db["signal_results"].find_one({"session_id": session_id}, {"_id": 0})
-    deadzones = await db["deadzones"].find_one({"session_id": session_id},     {"_id": 0})
+    session = await db["sessions"].find_one({"session_id": session_id}, {"_id": 0})
+    signal = await db["signal_results"].find_one({"session_id": session_id}, {"_id": 0})
+    deadzones = await db["deadzones"].find_one({"session_id": session_id}, {"_id": 0})
+    grid = await db["grids"].find_one({"session_id": session_id}, {"_id": 0})
+    routers = await db["routers"].find({"session_id": session_id}, {"_id": 0}).to_list(200)
 
     if not signal:
         raise HTTPException(status_code=404, detail="No analysis results found. Run /api/analyse first.")
+
+    rf_explanations = build_rf_explanations(session or {}, grid, signal, deadzones, routers)
 
     return {
         # Signal matrices
@@ -75,6 +81,7 @@ async def get_results(session_id: str):
         "quality_matrix":      signal.get("quality_matrix",      []),
         "interference_matrix": signal.get("interference_matrix", []),
         "metrics":             signal.get("metrics",             {}),
+        "rf_explanations":     rf_explanations,
 
         # Dead zone data
         "dead_zone_mask":  deadzones.get("dead_zone_mask",  []) if deadzones else [],

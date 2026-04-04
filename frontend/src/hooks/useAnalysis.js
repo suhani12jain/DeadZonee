@@ -35,13 +35,22 @@ export function useAnalysis() {
     try {
       const res = await runOptimise(sessionId)
       setOptimResult(res)
-      pushToast(`Optimised! +${res.improvement_pct?.toFixed(1)}% via ${res.algorithm}`, 'success')
+      if (res.updated_routers?.length) {
+        setRouters(res.updated_routers)
+      }
+      const data = await getResults(sessionId)
+      setResults(data)
+      if (res.no_change_required) {
+        pushToast(res.message || 'Current router layout is already near-optimal', 'info')
+      } else {
+        pushToast(`Optimised! +${res.improvement_pct?.toFixed(1)}% via ${res.algorithm}`, 'success')
+      }
     } catch (err) {
       pushToast('Optimisation failed: ' + (err.response?.data?.detail || err.message), 'error')
     } finally {
       setOptimising(false)
     }
-  }, [sessionId, setOptimising, setOptimResult, pushToast])
+  }, [sessionId, setOptimising, setOptimResult, setRouters, setResults, pushToast])
 
   const suggest = useCallback(async () => {
     if (!sessionId) return

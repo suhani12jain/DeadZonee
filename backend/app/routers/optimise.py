@@ -58,6 +58,8 @@ async def run_optimise(payload: OptimisePayload):
             "improvement_pct":   result.get("improvement_pct",   0.0),
             "optimised_routers": result.get("optimised_routers", []),
             "score_history":     result.get("score_history",     []),
+            "no_change_required": result.get("no_change_required", False),
+            "message":           result.get("message", ""),
             "updated_routers":   [],
         }
 
@@ -67,7 +69,7 @@ async def run_optimise(payload: OptimisePayload):
     updated_routers_raw = list(db_sync.routers.find({"session_id": sid}))
     updated_routers = [
         {
-            "id":            str(r["_id"]),
+            "router_id":     r.get("router_id", str(r["_id"])),
             "name":          r.get("name", ""),
             "row":           r["row"],
             "col":           r["col"],
@@ -89,5 +91,7 @@ async def run_optimise(payload: OptimisePayload):
         "improvement_pct":   result.get("improvement_pct",   0.0),
         "optimised_routers": result.get("optimised_routers", []),
         "score_history":     result.get("score_history",     []),
+        "no_change_required": result.get("no_change_required", False),
+        "message":           result.get("message", ""),
         "updated_routers":   updated_routers,   # ← frontend uses this to move pins
     }

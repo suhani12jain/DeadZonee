@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import useStore from './store/useStore'
 import { useRouters } from './hooks/useRouters'
+import { getResults } from './api/apiClient'
 
 // Panels
 import ProjectSetup from './components/Sidebar/ProjectSetup'
 import ZoneLabels from './components/Sidebar/ZoneLabels'
 import CellInfoPanel from './components/Sidebar/CellInfoPanel'
 import GridCanvas from './components/GridEditor/GridCanvas'
+import OverlayInsightsPanel from './components/Analysis/OverlayInsightsPanel'
 import RouterForm from './components/RouterConfig/RouterForm'
 import RouterList from './components/RouterConfig/RouterList'
 import MetricsSidebar from './components/Dashboard/MetricsSidebar'
@@ -96,7 +98,7 @@ function SideSection({ title, children, defaultOpen = true, accent }) {
 
 /* ── Main App ─────────────────────────────────────────────────────────── */
 export default function App() {
-  const { activePanel, sessionId, gridMeta, reset } = useStore()
+  const { activePanel, sessionId, gridMeta, setResults, reset } = useStore()
   const { fetchRouters } = useRouters()
   const canvasContainerRef = useRef()
   const [canvasDims, setCanvasDims] = useState({ w: 800, h: 600 })
@@ -119,6 +121,21 @@ export default function App() {
   useEffect(() => {
     if (sessionId) fetchRouters()
   }, [sessionId])
+
+  useEffect(() => {
+    let cancelled = false
+    async function hydrateResults() {
+      if (!sessionId) return
+      try {
+        const data = await getResults(sessionId)
+        if (!cancelled) setResults(data)
+      } catch (err) {
+        // Ignore 404 until analysis exists for the current session.
+      }
+    }
+    hydrateResults()
+    return () => { cancelled = true }
+  }, [sessionId, setResults])
 
   const isEditor = activePanel !== 'setup'
 
@@ -184,7 +201,11 @@ export default function App() {
 
             {/* Canvas */}
             <main className="canvas-area" ref={canvasContainerRef}>
-              <GridCanvas containerWidth={canvasDims.w} containerHeight={canvasDims.h} />
+              <GridCanvas
+                containerWidth={canvasDims.w}
+                containerHeight={Math.max(canvasDims.h, 260)}
+              />
+              <OverlayInsightsPanel />
             </main>
 
             {/* Right sidebar — routers + analysis + optimise + report */}
@@ -261,7 +282,7 @@ export default function App() {
         .sidebar-right { border-left:  1px solid var(--border-mid); }
 
         /* Canvas area */
-        .canvas-area { flex: 1; overflow: hidden; display: flex; }
+        .canvas-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
       `}</style>
     </div>
   )

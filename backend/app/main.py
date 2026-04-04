@@ -24,6 +24,7 @@ from app.routers import (
     optimise,
     suggest,
     report,
+    rf_explain,
 )
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ app.include_router(analyse.router)       # POST /api/analyse | GET /api/results/
 app.include_router(optimise.router)      # POST /api/optimise
 app.include_router(suggest.router)       # POST /api/suggest | POST /api/routers/accept-suggestion
 app.include_router(report.router)        # GET  /api/report
+app.include_router(rf_explain.router)    # GET  /api/explain/{id}
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

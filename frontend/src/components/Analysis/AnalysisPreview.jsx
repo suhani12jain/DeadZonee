@@ -8,7 +8,7 @@ const STEP_LABELS = {
 }
 
 export default function AnalysisPreview() {
-  const { isAnalysing, analyseSteps, metrics, routers, sessionId } = useStore()
+  const { isAnalysing, analyseSteps, metrics, deadZoneCount, routers, sessionId } = useStore()
   const { analyse } = useAnalysis()
 
   const canAnalyse = !!sessionId && routers.length > 0 && !isAnalysing
@@ -59,7 +59,7 @@ export default function AnalysisPreview() {
           </div>
           <div className="ap-sm-item">
             <span className="ap-sm-val" style={{ color: 'var(--danger)' }}>
-              {metrics.dead_zone_count ?? '—'}
+              {deadZoneCount ?? '—'}
             </span>
             <span className="ap-sm-key">Dead cells</span>
           </div>

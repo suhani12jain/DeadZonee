@@ -14,7 +14,7 @@ function MetricRow({ label, value, unit, color }) {
 }
 
 export default function MetricsSidebar() {
-  const { metrics, deadZoneCount, clusters, overlays, overlayOpacity, toggleOverlay, setOpacity } = useStore()
+  const { metrics, deadZoneCount, clusters, overlays, overlayOpacity, toggleOverlay, selectMetricOverlay, setOpacity } = useStore()
 
   const m = metrics ?? {}
 
@@ -43,7 +43,6 @@ export default function MetricsSidebar() {
       <p className="section-label">Overlays</p>
       <div className="ms-overlays">
         {[
-          { key: 'zones',        label: 'Zone Colours',  color: '#63b3ed' },
           { key: 'heatmap',      label: 'Signal Heat',   color: '#10b981' },
           { key: 'deadzone',     label: 'Dead Zones',    color: '#ef4444' },
           { key: 'interference', label: 'Interference',  color: '#a855f7' },
@@ -52,13 +51,24 @@ export default function MetricsSidebar() {
           <button key={key}
             className={`ov-btn ${overlays[key] ? 'ov-active' : ''}`}
             style={{ '--oc': color }}
-            onClick={() => toggleOverlay(key)}
+            onClick={() => selectMetricOverlay(key)}
           >
             <span className="ov-dot" />
             {label}
           </button>
         ))}
       </div>
+
+      <div className="divider" />
+      <p className="section-label">Base Layer</p>
+      <button
+        className={`ov-btn ${overlays.zones ? 'ov-active' : ''}`}
+        style={{ '--oc': '#63b3ed' }}
+        onClick={() => toggleOverlay('zones')}
+      >
+        <span className="ov-dot" />
+        Zone Colours
+      </button>
 
       <div className="divider" />
       <p className="section-label">Opacity</p>
@@ -68,7 +78,6 @@ export default function MetricsSidebar() {
       <p style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'right' }}>
         {Math.round(overlayOpacity * 100)}%
       </p>
-
       <style>{`
         .ms-wrap { display: flex; flex-direction: column; gap: 8px; }
         .ms-metrics { display: flex; flex-direction: column; gap: 6px; }

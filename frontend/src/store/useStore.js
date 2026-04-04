@@ -48,6 +48,7 @@ const useStore = create((set, get) => ({
   deadZoneCount:      0,
   clusters:           [],
   metrics:            null,
+  rfExplanations:     null,
 
   setResults: (data) => set({
     signalMatrix:       data.signal_matrix       ?? null,
@@ -57,6 +58,7 @@ const useStore = create((set, get) => ({
     deadZoneCount:      data.dead_zone_count      ?? 0,
     clusters:           data.clusters            ?? [],
     metrics:            data.metrics             ?? null,
+    rfExplanations:     data.rf_explanations     ?? null,
   }),
 
   // ── Optimisation ──────────────────────────────────────────────────────────
@@ -71,14 +73,31 @@ const useStore = create((set, get) => ({
   // ── Overlays ─────────────────────────────────────────────────────────────
   overlays: {
     heatmap:      true,
-    deadzone:     true,
+    deadzone:     false,
     interference: false,
     priority:     false,
     zones:        true,
   },
   overlayOpacity:  0.65,
-  toggleOverlay:   (key) => set((s) => ({ overlays: { ...s.overlays, [key]: !s.overlays[key] } })),
+  focusedOverlay: 'heatmap',
+  showOverlayInsights: false,
+  toggleOverlay:   (key) => set((s) => ({
+    overlays: { ...s.overlays, [key]: !s.overlays[key] },
+  })),
+  selectMetricOverlay: (key) => set((s) => ({
+    overlays: {
+      ...s.overlays,
+      heatmap: key === 'heatmap',
+      deadzone: key === 'deadzone',
+      interference: key === 'interference',
+      priority: key === 'priority',
+    },
+    focusedOverlay: key,
+    showOverlayInsights: true,
+  })),
   setOpacity:      (v)   => set({ overlayOpacity: v }),
+  setFocusedOverlay: (key) => set({ focusedOverlay: key }),
+  setShowOverlayInsights: (v) => set({ showOverlayInsights: v }),
 
   // ── UI loading / step state ───────────────────────────────────────────────
   isAnalysing:  false,
@@ -110,11 +129,12 @@ const useStore = create((set, get) => ({
   reset: () => set({
     sessionId: null, projectName: '', gridMeta: null, cells: [], routers: [],
     signalMatrix: null, qualityMatrix: null, interferenceMatrix: null,
-    deadZoneMask: null, deadZoneCount: 0, clusters: [], metrics: null,
+    deadZoneMask: null, deadZoneCount: 0, clusters: [], metrics: null, rfExplanations: null,
     optimResult: null, suggestion: null, analyseSteps: [],
     isAnalysing: false, isOptimising: false, isSuggesting: false,
     activePanel: 'setup', routerModal: null,
-    overlays: { heatmap: true, deadzone: true, interference: false, priority: false, zones: true },
+    overlays: { heatmap: true, deadzone: false, interference: false, priority: false, zones: true },
+    focusedOverlay: 'heatmap', showOverlayInsights: false,
   }),
 }))
 

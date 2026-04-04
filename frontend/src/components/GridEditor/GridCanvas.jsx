@@ -130,10 +130,21 @@ export default function GridCanvas({ containerWidth = 800, containerHeight = 600
   // Wheel zoom
   const handleWheel = (e) => {
     e.evt.preventDefault()
-    const scaleBy = 1.08
     const stage = stageRef.current
+    if (!stage) return
+
+    if (!e.evt.ctrlKey && !e.evt.metaKey) {
+      setStagePos(prev => ({
+        x: prev.x - e.evt.deltaX * 0.6,
+        y: prev.y - e.evt.deltaY * 0.6,
+      }))
+      return
+    }
+
+    const scaleBy = 1.08
     const oldScale = scale
     const pointer = stage.getPointerPosition()
+    if (!pointer) return
     const mousePointTo = {
       x: (pointer.x - stagePos.x) / oldScale,
       y: (pointer.y - stagePos.y) / oldScale,

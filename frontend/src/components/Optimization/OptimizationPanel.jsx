@@ -53,7 +53,13 @@ export default function OptimizationPanel() {
               </span>
             </div>
           </div>
-          <p className="op-algo">Algorithm: <strong>{optimResult.algorithm}</strong></p>
+          <p className="op-algo">
+            Algorithm: <strong>{optimResult.algorithm}</strong>
+            {optimResult.no_change_required ? ' · no movement required' : ''}
+          </p>
+          {optimResult.message && (
+            <p className="op-hint">{optimResult.message}</p>
+          )}
 
           {histData.length > 0 && (
             <div className="op-chart">
