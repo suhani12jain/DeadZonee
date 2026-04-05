@@ -47,8 +47,10 @@ export default function ProjectSetup() {
     if (!form.projectName.trim()) {
       pushToast('Enter a project name', 'error'); return
     }
-    if (!form.widthM || !form.heightM || !form.cellSizeM ||
-        form.cellSizeM <= 0 || form.widthM <= 0 || form.heightM <= 0) {
+    if (
+      !form.widthM || !form.heightM || !form.cellSizeM ||
+      form.cellSizeM <= 0 || form.widthM <= 0 || form.heightM <= 0
+    ) {
       pushToast('Invalid dimensions — all values must be > 0', 'error'); return
     }
     if (rows < 1 || cols < 1) {
@@ -57,7 +59,7 @@ export default function ProjectSetup() {
 
     setLoading(true)
     try {
-      // Step 1: create session
+      // ── Step 1: create session ──────────────────────────────────────────
       const session = await createSession({
         project_name:  form.projectName.trim(),
         building_name: form.buildingName.trim() || form.projectName.trim(),
@@ -67,16 +69,28 @@ export default function ProjectSetup() {
       })
 
       const sid = session.session_id
+
+      // Update the store — but DON'T rely on it being readable yet.
+      // Zustand is sync, but useGrid's useCallback captured the old sessionId
+      // in its closure at render time. We pass `sid` explicitly to generate()
+      // to avoid that stale-closure race condition on the first click.
       setSession(sid, form.projectName.trim())
 
-      // Step 2: generate grid (pass dims explicitly for safety)
-      const gridData = await generate(form.widthM, form.heightM, form.cellSizeM)
+      // ── Step 2: create grid — pass sid directly ─────────────────────────
+      const gridData = await generate(
+        form.widthM,
+        form.heightM,
+        form.cellSizeM,
+        sid,   // ← explicit sid bypasses the stale closure in useGrid
+      )
+
       if (!gridData) {
-        pushToast('Grid creation failed — check backend', 'error')
+        // generate() already pushed an error toast with the real message
         setLoading(false)
         return
       }
 
+      // ── Step 3: update UI state ─────────────────────────────────────────
       setGridMeta({
         grid_rows:   gridData.grid_rows,
         grid_cols:   gridData.grid_cols,
